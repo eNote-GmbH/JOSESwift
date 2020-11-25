@@ -23,6 +23,7 @@
 
 import Foundation
 import CommonCrypto
+import CryptoKit
 
 internal enum AESError: Error {
     case keyLengthNotSatisfied
@@ -40,6 +41,9 @@ fileprivate extension ContentEncryptionAlgorithm {
 
         case .A128CBCHS256:
             return CCAlgorithm(kCCAlgorithmAES)
+
+        case .A256GCM:
+            return CCAlgorithm(kCCAlgorithmAES)
         }
     }
 
@@ -50,6 +54,9 @@ fileprivate extension ContentEncryptionAlgorithm {
 
         case .A128CBCHS256:
             return key.count == kCCKeySizeAES128
+
+        case .A256GCM:
+            return key.count == kCCKeySizeAES256
         }
     }
 }
@@ -109,6 +116,19 @@ enum AES {
             }
 
             return ciphertext
+        case .A256GCM:
+            guard algorithm.checkAESKeyLength(for: encryptionKey) else {
+                throw AESError.keyLengthNotSatisfied
+            }
+
+            let key = CryptoKit.SymmetricKey(data: encryptionKey.data())
+            guard
+                let ciphertext = try CryptoKit.AES.GCM.seal(plaintext, using: key).combined
+            else {
+                throw AESError.encryptingFailed(description: "Encryption of AES GCM failed.")
+            }
+
+            return ciphertext
         }
     }
 
@@ -149,6 +169,15 @@ enum AES {
             }
 
             return plaintext
+
+        case .A256GCM:
+            guard algorithm.checkAESKeyLength(for: decryptionKey) else {
+                throw AESError.keyLengthNotSatisfied
+            }
+
+            let sealedBox = try CryptoKit.AES.GCM.SealedBox.init(combined: cipherText)
+            let symmetricKey = CryptoKit.SymmetricKey(data: decryptionKey.data())
+            return try CryptoKit.AES.GCM.open(sealedBox, using: symmetricKey)
         }
     }
 

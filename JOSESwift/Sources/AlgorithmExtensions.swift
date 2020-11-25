@@ -30,6 +30,8 @@ extension ContentEncryptionAlgorithm {
                return .SHA512
            case .A128CBCHS256:
                return .SHA256
+           case .A256GCM:
+               return .SHA256
            }
        }
 
@@ -39,12 +41,14 @@ extension ContentEncryptionAlgorithm {
                return 64
            case .A128CBCHS256:
                return 32
+           case .A256GCM:
+               return 64
            }
        }
 
        var initializationVectorLength: Int {
            switch self {
-           case .A128CBCHS256, .A256CBCHS512:
+           case .A128CBCHS256, .A256CBCHS512, .A256GCM:
                return 16
            }
        }
@@ -54,6 +58,8 @@ extension ContentEncryptionAlgorithm {
            case .A256CBCHS512:
                return key.count == 64
            case .A128CBCHS256:
+               return key.count == 32
+           case .A256GCM:
                return key.count == 32
            }
        }
@@ -72,6 +78,12 @@ extension ContentEncryptionAlgorithm {
                    throw JWEError.keyLengthNotSatisfied
                }
                return (inputKey.subdata(in: 0..<16), inputKey.subdata(in: 16..<32))
+
+           case .A256GCM:
+               guard checkKeyLength(for: inputKey) else {
+                   throw JWEError.keyLengthNotSatisfied
+               }
+               return (inputKey, inputKey)
            }
        }
 
@@ -81,6 +93,8 @@ extension ContentEncryptionAlgorithm {
                return hmac.subdata(in: 0..<32)
            case .A128CBCHS256:
                return hmac.subdata(in: 0..<16)
+           case .A256GCM:
+               return hmac.subdata(in: 0..<32)
            }
        }
 }
